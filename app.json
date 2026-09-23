@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "TEST-MOBILE",
-    "slug": "TEST-MOBILE",
+    "name": "Flowera",
+    "slug": "flowera-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "testmobile",
+    "scheme": "flowera",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"
