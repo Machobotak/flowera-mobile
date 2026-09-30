@@ -1,9 +1,10 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useAuth } from '@/auth/auth-context';
 import {
   Colors,
   Fonts,
@@ -16,9 +17,16 @@ import {
 /**
  * Tab "Profile" — padanan href="/profile/account" di web (halaman akun).
  * Static placeholder, meniru pola tampilan coming-soon/page.tsx web.
+ * Saat sudah login: tampilkan identitas user + tombol Keluar.
  */
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
+  const { user, logout } = useAuth();
+
+  const handleLogout = async (): Promise<void> => {
+    await logout();
+    router.replace('/');
+  };
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + Spacing.seven }]}>
@@ -31,22 +39,39 @@ export default function ProfileScreen() {
           />
         </View>
 
-        <Text style={styles.title}>Akun Saya</Text>
-        <Text style={styles.desc}>Fitur ini sedang dalam pengembangan.</Text>
+        <Text style={styles.title}>
+          {user ? `Halo, ${user.name}` : 'Akun Saya'}
+        </Text>
+        <Text style={styles.desc}>
+          {user ? user.email : 'Fitur ini sedang dalam pengembangan.'}
+        </Text>
         <Text style={styles.descMuted}>
-          Tim kami sedang bekerja keras untuk menghadirkannya segera.
+          {user
+            ? 'Kamu sudah masuk ke akun Flowera.'
+            : 'Tim kami sedang bekerja keras untuk menghadirkannya segera.'}
         </Text>
 
-        <Link href="/" asChild>
-          <TouchableOpacity style={styles.button} activeOpacity={0.85}>
-            <MaterialIcons name="arrow-back" size={18} color={Colors.onPrimary} />
-            <Text style={styles.buttonText}>Kembali ke Beranda</Text>
+        {user ? (
+          <TouchableOpacity
+            style={styles.button}
+            activeOpacity={0.85}
+            onPress={handleLogout}>
+            <MaterialIcons name="logout" size={18} color={Colors.onPrimary} />
+            <Text style={styles.buttonText}>Keluar</Text>
           </TouchableOpacity>
-        </Link>
+        ) : (
+          <Link href="/login" asChild>
+            <TouchableOpacity style={styles.button} activeOpacity={0.85}>
+              <MaterialIcons name="login" size={18} color={Colors.onPrimary} />
+              <Text style={styles.buttonText}>Masuk / Daftar</Text>
+            </TouchableOpacity>
+          </Link>
+        )}
       </View>
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   screen: {
