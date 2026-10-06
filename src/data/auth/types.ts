@@ -1,36 +1,30 @@
 /**
- * Tipe data user untuk prototype auth lokal Flowera.
- * Belum ada backend — user disimpan di AsyncStorage (`src/data/auth/users.ts`),
- * session disimpan terpisah di secure store (`src/auth/`).
+ * Tipe auth Flowera — mengikuti kontrak backend, bukan store lokal lagi.
  *
- * `PublicUser` adalah bentuk user tanpa salt/hash dan dipakai untuk
- * context/session; jangan pernah export `UserRecord` penuh keluar modul ini.
+ * Sumber kebenaran: `flowera-api/src/auth/dto/register.dto.ts`,
+ * `login.dto.ts`, dan response `GET /auth/me`.
+ * Tidak ada password/salt/hash di sini; password hanya lewat begitu saja
+ * dari form ke `POST /auth/login|register`.
  */
 
-/* ──────────────────────────── Types ──────────────────────────── */
-
-export interface UserRecord {
-  id: string; // uuid v4 (via Crypto.randomUUID())
-  name: string;
-  email: string; // selalu lowercase (normalized)
-  passwordSalt: string; // hex 32 char
-  passwordHash: string; // SHA-256(`${salt}:${password}`)
-  createdAt: string; // ISO string
-}
-
+/** User publik hasil mapping `GET /auth/me`. */
 export interface PublicUser {
-  id: string;
+  id: number;
   name: string;
   email: string;
-  createdAt: string;
+  avatar: string | null;
+  roles: string[];
 }
 
+/** Body `POST /auth/register` (RegisterDto: name, phone_number, email, password). */
 export interface RegisterInput {
   name: string;
+  phone_number: string;
   email: string;
   password: string;
 }
 
+/** Body `POST /auth/login` (LoginDto: email, password). */
 export interface LoginInput {
   email: string;
   password: string;

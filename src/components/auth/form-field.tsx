@@ -26,7 +26,7 @@ interface FormFieldProps {
   error?: string;
   match?: boolean;
   autoCapitalize?: 'none' | 'words' | 'sentences';
-  keyboardType?: 'default' | 'email-address';
+  keyboardType?: 'default' | 'email-address' | 'phone-pad';
 }
 
 export default function FormField({

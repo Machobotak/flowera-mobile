@@ -1,24 +1,29 @@
 /**
- * Auth context Flowera — state user & session di seluruh app.
+ * Auth context Flowera — state user & sesi di seluruh app, sumbernya Flowera API.
  *
- * Padanan `contexts/auth-context.tsx` web tanpa axios: register/login hanya
- * membaca/menulis store lokal (`src/data/auth/users.ts` + `src/auth/session-storage.ts`).
+ * Alur mengikuti backend `flowera-api` (parity dengan
+ * `contexts/auth-context.tsx` di web Flowera, tanpa axios terpisah):
+ *   login    → POST /api/auth/login → pasang token → GET /api/auth/me → simpan profil
+ *   register → POST /api/auth/register (sukses → user diarahkan ke /login)
+ *   boot     → baca session tersimpan, lalu validasi ulang lewat GET /api/auth/me
+ *   logout   → bersihkan state lokal, lalu POST /api/auth/logout (best-effort)
+ *
+ * Password tidak pernah disimpan; yang persist hanya token + profil publik
+ * (`src/auth/session-storage.ts`).
  */
 
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-} from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
-import type {
-  LoginInput,
-  PublicUser,
-  RegisterInput,
-} from '@/data/auth/types';
-import { createUser, verifyCredentials } from '@/data/auth/users';
-import { normalizeEmail } from '@/data/auth/validation';
+import {
+  fetchCurrentUser,
+  login as loginRequest,
+  logout as logoutRequest,
+  register as registerRequest,
+} from '@/data/api/auth-api';
+import { setAuthTokens } from '@/data/api/client';
+import { isUnauthorizedError, logApiError } from '@/data/api/errors';
+import type { LoginInput, PublicUser, RegisterInput } from '@/data/auth/types';
+import { normalizeEmail, normalizePhoneNumber } from '@/data/auth/validation';
 import {
   clearSession,
   getSession,
@@ -54,18 +59,37 @@ export function AuthProvider({
   useEffect(() => {
     let active = true;
 
-    getSession()
-      .then((session) => {
+    const restoreSession = async (): Promise<void> => {
+      const session = await getSession();
+      if (!session) return;
+
+      setAuthTokens({
+        accessToken: session.accessToken,
+        refreshToken: session.refreshToken,
+      });
+
+      // Tampilkan dulu profil tersimpan, lalu sinkronkan dengan backend.
+      if (active) setUser(session.user);
+
+      try {
+        const current = await fetchCurrentUser();
         if (!active) return;
-        if (session) {
-          setUser({
-            id: session.userId,
-            name: session.name,
-            email: session.email,
-            createdAt: session.issuedAt,
-          });
+        setUser(current);
+        await setSession({ ...session, user: current });
+      } catch (error) {
+        logApiError('restore-session', error);
+        if (isUnauthorizedError(error)) {
+          // Token/cookie sudah tidak berlaku → paksa login ulang.
+          setAuthTokens(null);
+          await clearSession();
+          if (active) setUser(null);
         }
-      })
+        // Error jaringan: biarkan sesi tersimpan supaya app tetap terbuka.
+      }
+    };
+
+    restoreSession()
+      .catch((error) => logApiError('restore-session', error))
       .finally(() => {
         if (active) setIsLoading(false);
       });
@@ -76,34 +100,38 @@ export function AuthProvider({
   }, []);
 
   const login = async (input: LoginInput): Promise<void> => {
-    const email = normalizeEmail(input.email);
-    const result = await verifyCredentials({ email, password: input.password });
+    const session = await loginRequest({
+      email: normalizeEmail(input.email),
+      password: input.password,
+    });
 
-    if ('error' in result) {
-      if (result.error === 'not_found') {
-        throw new Error('Akun tidak ditemukan');
-      }
-      throw new Error('Password salah');
-    }
-
-    const session = {
-      userId: result.user.id,
-      name: result.user.name,
-      email: result.user.email,
+    await setSession({
+      accessToken: session.tokens.accessToken,
+      refreshToken: session.tokens.refreshToken,
+      user: session.user,
       issuedAt: new Date().toISOString(),
-    };
-    await setSession(session);
-    setUser(result.user);
+    });
+    setUser(session.user);
   };
 
   const register = async (input: RegisterInput): Promise<void> => {
-    await createUser(input);
+    await registerRequest({
+      name: input.name.trim(),
+      phone_number: normalizePhoneNumber(input.phone_number),
+      email: normalizeEmail(input.email),
+      password: input.password,
+    });
     // Sesuai alur: register sukses → redirect ke /login, tidak auto-login.
   };
 
   const logout = async (): Promise<void> => {
-    await clearSession();
     setUser(null);
+    try {
+      await logoutRequest();
+    } finally {
+      setAuthTokens(null);
+      await clearSession();
+    }
   };
 
   return (

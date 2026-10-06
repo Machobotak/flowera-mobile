@@ -1,6 +1,7 @@
 /**
- * Screen Login (`/login`) — prototype auth lokal.
- * Padanan `app/(auth)/login/page.tsx` web: email + password, redirect ke Home.
+ * Screen Login (`/login`) — email + password, submit ke `POST /api/auth/login`
+ * lewat `useAuth().login()`. Padanan `app/(auth)/login/page.tsx` web:
+ * sukses → redirect ke Home, gagal → pesan ramah dari mapping error API.
  */
 
 import { Image } from 'expo-image';

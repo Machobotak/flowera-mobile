@@ -25,6 +25,58 @@ In the output, you'll find options to open the app in a
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
+## Integrasi Flowera API (auth)
+
+Register & login app ini memakai backend NestJS `flowera-api` (repo terpisah).
+Tidak ada data auth palsu/mock di dalam app.
+
+### Menjalankan
+
+1. Jalankan backend Flowera API di port 3000.
+2. Atur base URL lewat `.env`:
+
+   ```bash
+   EXPO_PUBLIC_API_BASE_URL=http://localhost:3000
+   ```
+
+   - Android emulator: `http://10.0.2.2:3000` (localhost emulator ≠ localhost host)
+   - Perangkat fisik: `http://<IP-LAN-komputer>:3000`
+3. Untuk **web**, backend hanya mengizinkan CORS dari `http://localhost:3001`
+   (`flowera-api/src/main.ts`), jadi jalankan:
+
+   ```bash
+   npx expo start --web --port 3001
+   ```
+
+### Endpoint yang dipakai
+
+| Aksi     | Endpoint                 | Body                                          | Response ringkas                              |
+| -------- | ------------------------ | --------------------------------------------- | --------------------------------------------- |
+| Register | `POST /api/auth/register` | `name`, `phone_number`, `email`, `password`  | `201 { status, message, accessToken, refreshToken }` |
+| Login    | `POST /api/auth/login`    | `email`, `password`                           | `200 { status, message, accessToken, refreshToken }` |
+| Profil   | `GET /api/auth/me`        | — (cookie)                                    | `200 { id, name, email, avatar, roles }`      |
+| Logout   | `POST /api/auth/logout`   | — (cookie)                                    | `200 { message }`                             |
+
+- Base URL + header auth terpusat di `src/data/api/client.ts` (axios); endpoint
+  dan pemetaan response → model UI ada di `src/data/api/auth-api.ts`.
+- Pesan error backend (`{ message, statusCode }`) dipetakan ke teks ramah user
+  di `src/data/api/errors.ts`; detail teknis hanya masuk console.
+- Session (accessToken + refreshToken + profil) disimpan lewat
+  `expo-secure-store` di `src/auth/session-storage.ts`; password tidak pernah
+  disimpan.
+- Register sukses → redirect ke `/login` (sesi otomatis dari backend langsung
+  dibuang lewat `/auth/logout`).
+
+### Catatan: `POST /api/auth/refresh` bermasalah di backend
+
+Saat integrasi ini diuji, `POST /api/auth/refresh` **selalu** membalas
+`403 {"message":"Refresh token tidak valid"}` walaupun refresh token yang
+dikirim identik dengan cookie hasil login dan cocok dengan hash di database
+(`bcrypt.compare` = `true`). Artinya token diterima (bukan 401), tetapi
+perbandingan di handler `AuthService.refreshToken` gagal. Karena itu app tidak
+memasang auto-refresh: access token berlaku 15 menit, setelah itu user diminta
+login ulang. Perbaikannya ada di repo `flowera-api`, bukan di sini.
+
 ## Get a fresh project
 
 When you're ready, run:

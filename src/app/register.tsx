@@ -1,6 +1,7 @@
 /**
- * Screen Register (`/register`) — prototype auth lokal.
- * Padanan `app/(auth)/register/page.tsx` web (tanpa phone/terms/social login).
+ * Screen Register (`/register`) — form sesuai `RegisterDto` Flowera API
+ * (name, phone_number, email, password). Submit ke `POST /api/auth/register`
+ * lewat `useAuth().register()`; sukses → redirect ke `/login`.
  */
 
 import { Image } from 'expo-image';
@@ -21,10 +22,16 @@ import PasswordStrength from '@/components/auth/password-strength';
 import PrimaryButton from '@/components/auth/primary-button';
 import { useAuth } from '@/auth/auth-context';
 import { Colors, Fonts, MarginMobile, StackMd } from '@/constants/theme';
-import { validateEmail, validatePassword } from '@/data/auth/validation';
+import {
+  validateEmail,
+  validateName,
+  validatePassword,
+  validatePhoneNumber,
+} from '@/data/auth/validation';
 
 interface FieldErrors {
   name?: string;
+  phone_number?: string;
   email?: string;
   password?: string;
   confirmPassword?: string;
@@ -35,6 +42,7 @@ export default function RegisterScreen(): React.JSX.Element {
   const { register } = useAuth();
 
   const [name, setName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -50,23 +58,17 @@ export default function RegisterScreen(): React.JSX.Element {
   const handleSubmit = async (): Promise<void> => {
     const errors: FieldErrors = {};
 
-    if (name.trim().length === 0) {
-      errors.name = 'Nama wajib diisi';
-    }
+    const nameError = validateName(name);
+    if (nameError) errors.name = nameError;
 
-    if (email.trim().length === 0) {
-      errors.email = 'Email wajib diisi';
-    } else {
-      const emailError = validateEmail(email);
-      if (emailError) errors.email = emailError;
-    }
+    const phoneError = validatePhoneNumber(phoneNumber);
+    if (phoneError) errors.phone_number = phoneError;
 
-    if (password.length === 0) {
-      errors.password = 'Password wajib diisi';
-    } else {
-      const passwordError = validatePassword(password);
-      if (passwordError) errors.password = passwordError;
-    }
+    const emailError = validateEmail(email);
+    if (emailError) errors.email = emailError;
+
+    const passwordError = validatePassword(password);
+    if (passwordError) errors.password = passwordError;
 
     if (confirmPassword.length === 0) {
       errors.confirmPassword = 'Konfirmasi password wajib diisi';
@@ -80,7 +82,7 @@ export default function RegisterScreen(): React.JSX.Element {
     setFormError(null);
     setSubmitting(true);
     try {
-      await register({ name, email, password });
+      await register({ name, phone_number: phoneNumber, email, password });
       router.replace({ pathname: '/login', params: { registered: '1' } });
     } catch (e) {
       setFormError(e instanceof Error ? e.message : 'Registrasi gagal');
@@ -123,6 +125,16 @@ export default function RegisterScreen(): React.JSX.Element {
                 icon="person"
                 autoCapitalize="words"
                 error={fieldErrors.name}
+              />
+              <FormField
+                label="Nomor Telepon"
+                value={phoneNumber}
+                onChangeText={setPhoneNumber}
+                placeholder="08xxxxxxxxxx"
+                icon="phone"
+                keyboardType="phone-pad"
+                autoCapitalize="none"
+                error={fieldErrors.phone_number}
               />
               <FormField
                 label="Email"
@@ -198,6 +210,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: MarginMobile,
+    paddingVertical: 24,
   },
   content: {
     width: '100%',
