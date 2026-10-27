@@ -4,6 +4,7 @@
  * sukses → redirect ke Home, gagal → pesan ramah dari mapping error API.
  */
 
+import * as Network from 'expo-network';
 import { Image } from 'expo-image';
 import { Link, router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
@@ -32,6 +33,12 @@ export default function LoginScreen(): React.JSX.Element {
   const insets = useSafeAreaInsets();
   const { login } = useAuth();
   const { registered } = useLocalSearchParams<{ registered?: string }>();
+  const networkState = Network.useNetworkState();
+
+  // `undefined` saat state belum terbaca → anggap online agar tidak berkedip merah.
+  const isOnline =
+    networkState.isConnected !== false &&
+    networkState.isInternetReachable !== false;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -92,6 +99,32 @@ export default function LoginScreen(): React.JSX.Element {
               <Text style={styles.subtitle}>
                 Masuk ke akun kamu untuk melanjutkan belanja bunga.
               </Text>
+              <View
+                style={styles.connection}
+                accessibilityRole="text"
+                accessibilityLabel={
+                  isOnline
+                    ? 'Status koneksi: terhubung ke internet'
+                    : 'Status koneksi: tidak ada internet'
+                }>
+                <View
+                  style={[
+                    styles.connectionDot,
+                    {
+                      backgroundColor: isOnline
+                        ? Colors.secondary
+                        : Colors.error,
+                    },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.connectionText,
+                    { color: isOnline ? Colors.secondary : Colors.error },
+                  ]}>
+                  {isOnline ? 'Terhubung ke internet' : 'Tidak ada internet'}
+                </Text>
+              </View>
             </View>
 
             {registered === '1' ? (
@@ -186,6 +219,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.onSurfaceVariant,
     textAlign: 'center',
+  },
+  connection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: Colors.surfaceContainer,
+  },
+  connectionDot: {
+    height: 8,
+    width: 8,
+    borderRadius: 4,
+  },
+  connectionText: {
+    fontFamily: Fonts.bodyMedium,
+    fontSize: 12,
   },
   successBanner: {
     backgroundColor: Colors.secondary,

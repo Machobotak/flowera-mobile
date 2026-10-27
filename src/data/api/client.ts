@@ -9,13 +9,11 @@
  * token dikirim di body JSON (`accessToken`, `refreshToken`) DAN diset sebagai
  * cookie httpOnly. Cookie jar native tidak dijamin bertahan lintas restart
  * aplikasi, jadi token juga dikirim ulang sebagai header:
- *   - `Authorization: Bearer <accessToken>` — dibaca strategi passport
- *     (`jwt-access.strategy.ts`, `jwt-refresh.strategy.ts`, `jwt-auth.guard.ts`).
- *   - `Cookie: accessToken=...; refreshToken=...` (khusus native) — dibutuhkan
- *     endpoint yang guard-nya hanya membaca cookie (`JwtAuthGuard`):
- *     `GET /auth/me` dan `POST /auth/logout`.
- * Di web header `Cookie` dilarang browser, tapi cookie httpOnly tetap ikut
- * terkirim otomatis karena `withCredentials: true`.
+ *   - `Authorization: Bearer <accessToken>` — dibaca `JwtAuthGuard` dan
+ *     strategi passport (`jwt-access.strategy.ts`, `jwt-refresh.strategy.ts`).
+ *     Ini jalur yang dipakai web: browser menolak `Cookie` manual, dan cookie
+ *     httpOnly dari API (origin lain, `SameSite=Lax`) tidak ikut terkirim.
+ *   - `Cookie: accessToken=...; refreshToken=...` (khusus native).
  */
 
 import { create, type AxiosInstance } from 'axios';
