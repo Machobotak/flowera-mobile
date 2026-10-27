@@ -48,7 +48,15 @@ export default function TabsLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => (
-            <MaterialIcons name="home" size={24} color={color} />
+            <MaterialIcons
+              name="home"
+              size={24}
+              color={
+                typeof color === 'number' || color === null
+                  ? undefined
+                  : color
+              }
+            />
           ),
         }}
       />
@@ -57,7 +65,15 @@ export default function TabsLayout() {
         options={{
           title: 'Orders',
           tabBarIcon: ({ color }) => (
-            <MaterialIcons name="local-mall" size={24} color={color} />
+            <MaterialIcons
+              name="local-mall"
+              size={24}
+              color={
+                typeof color === 'number' || color === null
+                  ? undefined
+                  : color
+              }
+            />
           ),
         }}
       />
@@ -66,7 +82,15 @@ export default function TabsLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color }) => (
-            <MaterialIcons name="account-circle" size={24} color={color} />
+            <MaterialIcons
+              name="account-circle"
+              size={24}
+              color={
+                typeof color === 'number' || color === null
+                  ? undefined
+                  : color
+              }
+            />
           ),
         }}
       />
