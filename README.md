@@ -77,6 +77,27 @@ perbandingan di handler `AuthService.refreshToken` gagal. Karena itu app tidak
 memasang auto-refresh: access token berlaku 15 menit, setelah itu user diminta
 login ulang. Perbaikannya ada di repo `flowera-api`, bukan di sini.
 
+## Kamera foto profil
+
+Setelah login, tab **Profile** menampilkan tombol **Ambil Foto / Ganti Foto**.
+Guest hanya melihat tombol **Masuk / Daftar**; tombol kamera dan badge avatar
+sengaja disembunyikan sampai sesi aktif.
+
+1. Modal kamera meminta izin akses kamera dulu (`expo-camera`).
+2. Setelah foto dijepret, pilih **Simpan Foto**:
+   - file disalin ke `Paths.document/profile-photos` (`expo-file-system`)
+     sehingga tetap ada setelah app ditutup;
+   - salinan dimasukkan ke galeri perangkat (`expo-media-library`,
+     best-effort — kalau izin galeri ditolak, foto tetap tersimpan di app).
+3. Foto disimpan per akun (`photo-<userId>-<timestamp>.jpg`) dan hanya
+   ditampilkan untuk user yang membuatnya; avatar dari `GET /auth/me` hanya
+   fallback.
+
+Di **web** tidak ada file system native/galeri, jadi foto hanya bertahan
+selama sesi (lihat `src/profile/photo-storage.web.ts`). Izin dan pesan
+kamera/galeri diatur lewat plugin `expo-camera` dan `expo-media-library` di
+`app.json`; mengubahnya membutuhkan rebuild dev client / prebuild.
+
 ## Get a fresh project
 
 When you're ready, run:
