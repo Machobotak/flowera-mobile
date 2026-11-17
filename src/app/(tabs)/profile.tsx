@@ -4,7 +4,7 @@
  * Struktur web: kartu akun + sidebar (Ubah Profil, Alamat, Password). Di
  * mobile sidebar diganti segmented tabs agar tetap satu layar.
  *
- * Foto profil: kamera perangkat (CameraCaptureModal) disimpan lokal; avatar
+ * Foto profil: kamera perangkat (PhotoCaptureModal) disimpan lokal; avatar
  * API dipakai sebagai fallback.
  */
 
@@ -25,7 +25,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/auth-context';
 import AddressSection from '@/components/profile/address-section';
-import CameraCaptureModal from '@/components/profile/camera-capture-modal';
+import PhotoCaptureModal from '@/components/media/photo-capture-modal';
 import PasswordForm from '@/components/profile/password-form';
 import ProfileForm from '@/components/profile/profile-form';
 import {
@@ -38,6 +38,8 @@ import {
 } from '@/constants/theme';
 import {
   getSavedProfilePhoto,
+  savePhotoToLibrary,
+  saveProfilePhoto,
   type SavedProfilePhoto,
 } from '@/profile/photo-storage';
 
@@ -106,7 +108,26 @@ export default function ProfileScreen(): React.JSX.Element {
     );
   }
 
-  const roleLabel = user.roles.includes('admin') ? 'Admin' : 'Member';
+  const isSeller = user.roles.includes('seller');
+  const roleLabel = user.roles.includes('admin')
+    ? 'Admin'
+    : isSeller
+      ? 'Penjual'
+      : 'Member';
+
+  /** Simpan ke penyimpanan app + galeri (best-effort), sama seperti sebelumnya. */
+  const handlePhotoCaptured = async (uri: string): Promise<void> => {
+    const savedUri = saveProfilePhoto(uri, user.id);
+    const savedToGallery = await savePhotoToLibrary(savedUri);
+    setSavedPhoto({ userId: user.id, uri: savedUri });
+
+    Alert.alert(
+      'Foto Profil Tersimpan',
+      savedToGallery
+        ? 'Foto juga disimpan ke galeri perangkat.'
+        : 'Foto disimpan di aplikasi (galeri tidak tersedia).',
+    );
+  };
 
   return (
     <View style={styles.screen}>
@@ -164,6 +185,36 @@ export default function ProfileScreen(): React.JSX.Element {
           </View>
         </View>
 
+        <TouchableOpacity
+          style={styles.sellerCard}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={isSeller ? 'Buka Seller Center' : 'Buat toko'}
+          onPress={() => router.push(isSeller ? '/store' : '/store/create')}>
+          <View style={styles.sellerIcon}>
+            <MaterialIcons
+              name={isSeller ? 'storefront' : 'add-business'}
+              size={22}
+              color={Colors.onPrimary}
+            />
+          </View>
+          <View style={styles.sellerInfo}>
+            <Text style={styles.sellerTitle}>
+              {isSeller ? 'Seller Center' : 'Buka Toko'}
+            </Text>
+            <Text style={styles.sellerDesc}>
+              {isSeller
+                ? 'Kelola produk, pesanan, dan profil toko.'
+                : 'Mulai jual buket & tanamanmu di Flowera.'}
+            </Text>
+          </View>
+          <MaterialIcons
+            name="chevron-right"
+            size={22}
+            color={Colors.onSurfaceVariant}
+          />
+        </TouchableOpacity>
+
         <View style={styles.tabBar}>
           {TABS.map((tab) => {
             const active = tab.key === activeTab;
@@ -198,11 +249,10 @@ export default function ProfileScreen(): React.JSX.Element {
         </TouchableOpacity>
       </ScrollView>
 
-      <CameraCaptureModal
+      <PhotoCaptureModal
         visible={isCameraOpen}
-        userId={user.id}
         onClose={() => setIsCameraOpen(false)}
-        onSaved={(uri) => setSavedPhoto({ userId: user.id, uri })}
+        onCaptured={handlePhotoCaptured}
       />
     </View>
   );
@@ -227,6 +277,40 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     padding: Spacing.four,
     ...ShadowSoft,
+  },
+  sellerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderWidth: 1,
+    borderColor: Colors.outlineVariant,
+    borderRadius: Radius.lg,
+    paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.four,
+    ...ShadowSoft,
+  },
+  sellerIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.secondary,
+  },
+  sellerInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  sellerTitle: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 15,
+    color: Colors.onSurface,
+  },
+  sellerDesc: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.onSurfaceVariant,
   },
   avatarWrap: {
     width: 48,

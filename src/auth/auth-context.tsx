@@ -11,6 +11,25 @@
  * Password tidak pernah disimpan; yang persist hanya token + profil publik
  * (`src/auth/session-storage.ts`).
  */
+  /** Ambil ulang profil dari server (mis. setelah jadi seller). */
+  refreshUser(): Promise<PublicUser | null>;
+  refreshUser: async () => null,
+  /**
+   * Sinkronkan profil dari `GET /auth/me` tanpa login ulang.
+   * Dipakai setelah `POST /seller/store/create`: role `seller` baru terbaca
+   * dari tabel SELLER, sedangkan token lama tetap `roles:["user"]`.
+   */
+  const refreshUser = async (): Promise<PublicUser | null> => {
+    const current = await fetchCurrentUser();
+    setUser(current);
+
+    const session = await getSession();
+    if (session) await setSession({ ...session, user: current });
+
+    return current;
+  };
+
+        refreshUser,
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 

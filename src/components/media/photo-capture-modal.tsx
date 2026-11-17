@@ -1,9 +1,13 @@
 /**
- * Modal kamera untuk foto profil (expo-camera).
+ * Modal kamera generik (expo-camera).
  *
- * Alur:
- *   buka modal → izin kamera diminta otomatis → preview kamera → jepret →
- *   pratinjau hasil → "Simpan Foto" (app + galeri) / "Ambil Ulang".
+ * Dipakai untuk semua foto yang diambil langsung dari kamera perangkat:
+ * foto profil pembeli, logo toko, foto produk, dan foto bukti pengerjaan
+ * pesanan. Komponen ini hanya menghasilkan URI; penyimpanan/upload diserahkan
+ * ke pemanggil lewat `onCaptured`.
+ *
+ * Alur: buka modal → izin kamera diminta otomatis → preview → jepret →
+ * pratinjau hasil → "Pakai Foto" / "Ambil Ulang".
  *
  * CameraView hanya dipasang saat preview dibutuhkan; begitu foto diambil
  * komponen kamera dilepas (expo hanya mendukung satu preview aktif).
@@ -28,21 +32,19 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
-import { savePhotoToLibrary, saveProfilePhoto } from '@/profile/photo-storage';
 
-interface CameraCaptureModalProps {
+interface PhotoCaptureModalProps {
   visible: boolean;
-  userId: number;
+  /** Dijalankan setelah user menekan "Pakai Foto"; modal menunggu selesai. */
+  onCaptured(uri: string): Promise<void> | void;
   onClose(): void;
-  onSaved(uri: string): void;
 }
 
-export default function CameraCaptureModal({
+export default function PhotoCaptureModal({
   visible,
-  userId,
+  onCaptured,
   onClose,
-  onSaved,
-}: CameraCaptureModalProps): React.JSX.Element {
+}: PhotoCaptureModalProps): React.JSX.Element {
   const insets = useSafeAreaInsets();
   const [permission, requestPermission, getPermission] =
     useCameraPermissions();
@@ -119,7 +121,7 @@ export default function CameraCaptureModal({
           : photo.uri,
       );
     } catch (error) {
-      console.warn('[profile] gagal mengambil foto', error);
+      console.warn('[camera] gagal mengambil foto', error);
       Alert.alert('Gagal Ambil Foto', 'Kamera belum siap. Coba lagi.');
     } finally {
       setIsCapturing(false);
@@ -133,19 +135,16 @@ export default function CameraCaptureModal({
 
     setIsSaving(true);
     try {
-      const savedUri = saveProfilePhoto(capturedUri, userId);
-      const savedToGallery = await savePhotoToLibrary(savedUri);
-      onSaved(savedUri);
+      await onCaptured(capturedUri);
       handleClose();
-      Alert.alert(
-        'Foto Tersimpan',
-        savedToGallery
-          ? 'Foto profil dipasang dan salinannya masuk ke galeri.'
-          : 'Foto profil dipasang. Salinan ke galeri tidak tersedia.',
-      );
     } catch (error) {
-      console.warn('[profile] gagal menyimpan foto', error);
-      Alert.alert('Gagal Menyimpan Foto', 'Coba ambil foto sekali lagi.');
+      console.warn('[camera] gagal memakai foto', error);
+      Alert.alert(
+        'Gagal Memakai Foto',
+        error instanceof Error && error.message
+          ? error.message
+          : 'Coba ambil foto sekali lagi.',
+      );
     } finally {
       setIsSaving(false);
     }
@@ -193,7 +192,7 @@ export default function CameraCaptureModal({
             <Text style={styles.permissionTitle}>Izin Kamera Dibutuhkan</Text>
             <Text style={styles.permissionMessage}>
               {permission.canAskAgain
-                ? 'Flowera perlu akses kamera untuk mengambil foto profil.'
+                ? 'Flowera perlu akses kamera untuk mengambil foto.'
                 : 'Izin kamera ditolak. Aktifkan lewat pengaturan perangkat.'}
             </Text>
 
@@ -252,13 +251,13 @@ export default function CameraCaptureModal({
                   <ActivityIndicator color={Colors.onPrimary} />
                 ) : (
                   <MaterialIcons
-                    name="save"
+                    name="check"
                     size={20}
                     color={Colors.onPrimary}
                   />
                 )}
                 <Text style={styles.actionText}>
-                  {isSaving ? 'Menyimpan…' : 'Simpan Foto'}
+                  {isSaving ? 'Memproses…' : 'Pakai Foto'}
                 </Text>
               </TouchableOpacity>
             </View>
