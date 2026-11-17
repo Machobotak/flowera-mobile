@@ -115,6 +115,24 @@ export async function register(input: RegisterInput): Promise<void> {
   }
 }
 
+/**
+ * `POST /auth/change-password` — kontrak `ChangePasswordDto`:
+ * `{ oldPassword, newPassword }`, newPassword minimal 8 karakter.
+ * Endpoint memakai `JwtAccessGuard` (req.user.id), jadi header Bearer dari
+ * client cukup; tidak perlu mengirim ulang data user.
+ */
+export async function changePassword(input: {
+  oldPassword: string;
+  newPassword: string;
+}): Promise<void> {
+  try {
+    await api.post('/auth/change-password', input);
+  } catch (error) {
+    logApiError('change-password', error);
+    throw new Error(toUserMessage(error, 'Gagal mengubah password.'));
+  }
+}
+
 /** `POST /auth/logout` — best-effort, error jaringan bukan blocker logout lokal. */
 export async function logout(): Promise<void> {
   try {

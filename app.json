@@ -48,6 +48,12 @@
           "savePhotosPermission": "Izinkan Flowera menyimpan foto profil ke galeri.",
           "granularPermissions": ["photo"]
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Izinkan Flowera mengakses lokasi kamu untuk mengisi alamat secara otomatis."
+        }
       ]
     ],
     "experiments": {

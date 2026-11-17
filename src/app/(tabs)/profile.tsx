@@ -1,12 +1,33 @@
+/**
+ * Tab "Profile" — padanan /profile/account di web.
+ *
+ * Struktur web: kartu akun + sidebar (Ubah Profil, Alamat, Password). Di
+ * mobile sidebar diganti segmented tabs agar tetap satu layar.
+ *
+ * Foto profil: kamera perangkat (CameraCaptureModal) disimpan lokal; avatar
+ * API dipakai sebagai fallback.
+ */
+
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import { Link, router } from 'expo-router';
 import React, { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/auth-context';
+import AddressSection from '@/components/profile/address-section';
 import CameraCaptureModal from '@/components/profile/camera-capture-modal';
+import PasswordForm from '@/components/profile/password-form';
+import ProfileForm from '@/components/profile/profile-form';
 import {
   Colors,
   Fonts,
@@ -20,53 +41,102 @@ import {
   type SavedProfilePhoto,
 } from '@/profile/photo-storage';
 
-/**
- * Tab "Profile" — padanan href="/profile/account" di web (halaman akun).
- * Static placeholder, meniru pola tampilan coming-soon/page.tsx web.
- * Saat sudah login: tampilkan identitas user + tombol Keluar.
- * Foto profil diambil lewat kamera perangkat (lihat CameraCaptureModal) dan
- * disimpan lokal; kalau user punya avatar dari API, itu jadi fallback.
- */
-export default function ProfileScreen() {
+type TabKey = 'profile' | 'address' | 'password';
+
+const TABS: { key: TabKey; label: string }[] = [
+  { key: 'profile', label: 'Profil' },
+  { key: 'address', label: 'Alamat' },
+  { key: 'password', label: 'Password' },
+];
+
+export default function ProfileScreen(): React.JSX.Element {
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
   const [savedPhoto, setSavedPhoto] = useState<SavedProfilePhoto | null>(() =>
     getSavedProfilePhoto(),
   );
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabKey>('profile');
 
   const hasLocalPhoto = Boolean(user && savedPhoto?.userId === user.id);
-  const avatarUri =
-    user && savedPhoto?.userId === user.id
-      ? savedPhoto.uri
-      : (user?.avatar ?? null);
+  const avatarUri = hasLocalPhoto
+    ? (savedPhoto?.uri ?? null)
+    : (user?.avatar ?? null);
 
-  const handleLogout = async (): Promise<void> => {
-    await logout();
-    router.replace('/');
+  const handleLogout = (): void => {
+    Alert.alert('Keluar Akun', 'Yakin ingin keluar dari akun Flowera?', [
+      { text: 'Batal', style: 'cancel' },
+      {
+        text: 'Keluar',
+        style: 'destructive',
+        onPress: () => {
+          void logout().then(() => router.replace('/'));
+        },
+      },
+    ]);
   };
 
-  return (
-    <View style={[styles.screen, { paddingTop: insets.top + Spacing.seven }]}>
-      <View style={styles.placeholder}>
-        <View style={styles.avatarWrap}>
-          <View style={styles.avatarCircle}>
-            {avatarUri ? (
-              <Image
-                source={{ uri: avatarUri }}
-                style={styles.avatarImage}
-                contentFit="cover"
-                transition={200}
-              />
-            ) : (
+  if (!user) {
+    return (
+      <View style={[styles.screen, { paddingTop: insets.top + Spacing.seven }]}>
+        <View style={styles.placeholder}>
+          <View style={styles.avatarWrap}>
+            <View style={styles.avatarCircle}>
               <MaterialIcons
                 name="account-circle"
                 size={56}
                 color={Colors.onSurfaceVariant}
               />
-            )}
+            </View>
           </View>
-          {user ? (
+
+          <Text style={styles.title}>Akun Saya</Text>
+          <Text style={styles.desc}>
+            Masuk untuk mengelola profil dan alamat pengiriman kamu.
+          </Text>
+
+          <Link href="/login" asChild>
+            <TouchableOpacity style={styles.loginButton} activeOpacity={0.85}>
+              <MaterialIcons name="login" size={18} color={Colors.onPrimary} />
+              <Text style={styles.loginButtonText}>Masuk / Daftar</Text>
+            </TouchableOpacity>
+          </Link>
+        </View>
+      </View>
+    );
+  }
+
+  const roleLabel = user.roles.includes('admin') ? 'Admin' : 'Member';
+
+  return (
+    <View style={styles.screen}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: insets.top + Spacing.five,
+            paddingBottom: insets.bottom + Spacing.seven + Spacing.six,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}>
+        <View style={styles.accountCard}>
+          <View style={styles.avatarWrap}>
+            <View style={styles.avatarCircle}>
+              {avatarUri ? (
+                <Image
+                  source={{ uri: avatarUri }}
+                  style={styles.avatarImage}
+                  contentFit="cover"
+                  transition={200}
+                />
+              ) : (
+                <MaterialIcons
+                  name="account-circle"
+                  size={48}
+                  color={Colors.onSurfaceVariant}
+                />
+              )}
+            </View>
             <TouchableOpacity
               style={styles.cameraBadge}
               activeOpacity={0.85}
@@ -75,85 +145,92 @@ export default function ProfileScreen() {
               onPress={() => setIsCameraOpen(true)}>
               <MaterialIcons
                 name="photo-camera"
-                size={18}
+                size={15}
                 color={Colors.onPrimary}
               />
             </TouchableOpacity>
-          ) : null}
+          </View>
+
+          <View style={styles.accountInfo}>
+            <Text style={styles.accountName} numberOfLines={1}>
+              {user.name}
+            </Text>
+            <Text style={styles.accountEmail} numberOfLines={1}>
+              {user.email}
+            </Text>
+            <View style={styles.roleBadge}>
+              <Text style={styles.roleText}>{roleLabel}</Text>
+            </View>
+          </View>
         </View>
 
-        <Text style={styles.title}>
-          {user ? `Halo, ${user.name}` : 'Akun Saya'}
-        </Text>
-        <Text style={styles.desc}>
-          {user ? user.email : 'Fitur ini sedang dalam pengembangan.'}
-        </Text>
-        <Text style={styles.descMuted}>
-          {user
-            ? 'Kamu sudah masuk ke akun Flowera.'
-            : 'Tim kami sedang bekerja keras untuk menghadirkannya segera.'}
-        </Text>
+        <View style={styles.tabBar}>
+          {TABS.map((tab) => {
+            const active = tab.key === activeTab;
+            return (
+              <Pressable
+                key={tab.key}
+                style={styles.tab}
+                onPress={() => setActiveTab(tab.key)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: active }}>
+                <Text style={[styles.tabText, active && styles.tabTextActive]}>
+                  {tab.label}
+                </Text>
+                <View
+                  style={[styles.tabIndicator, active && styles.tabIndicatorActive]}
+                />
+              </Pressable>
+            );
+          })}
+        </View>
 
-        {user ? (
-          <TouchableOpacity
-            style={styles.cameraButton}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            onPress={() => setIsCameraOpen(true)}>
-            <MaterialIcons
-              name="photo-camera"
-              size={18}
-              color={Colors.primary}
-            />
-            <Text style={styles.cameraButtonText}>
-              {hasLocalPhoto ? 'Ganti Foto' : 'Ambil Foto'}
-            </Text>
-          </TouchableOpacity>
-        ) : null}
+        {activeTab === 'profile' ? <ProfileForm /> : null}
+        {activeTab === 'address' ? <AddressSection /> : null}
+        {activeTab === 'password' ? <PasswordForm /> : null}
 
-        {user ? (
-          <TouchableOpacity
-            style={styles.button}
-            activeOpacity={0.85}
-            onPress={handleLogout}>
-            <MaterialIcons name="logout" size={18} color={Colors.onPrimary} />
-            <Text style={styles.buttonText}>Keluar</Text>
-          </TouchableOpacity>
-        ) : (
-          <Link href="/login" asChild>
-            <TouchableOpacity style={styles.button} activeOpacity={0.85}>
-              <MaterialIcons name="login" size={18} color={Colors.onPrimary} />
-              <Text style={styles.buttonText}>Masuk / Daftar</Text>
-            </TouchableOpacity>
-          </Link>
-        )}
-      </View>
-      {user ? (
-        <CameraCaptureModal
-          visible={isCameraOpen}
-          userId={user.id}
-          onClose={() => setIsCameraOpen(false)}
-          onSaved={(uri) => setSavedPhoto({ userId: user.id, uri })}
-        />
-      ) : null}
+        <TouchableOpacity
+          style={styles.logoutButton}
+          activeOpacity={0.85}
+          onPress={handleLogout}>
+          <MaterialIcons name="logout" size={18} color={Colors.error} />
+          <Text style={styles.logoutText}>Keluar</Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      <CameraCaptureModal
+        visible={isCameraOpen}
+        userId={user.id}
+        onClose={() => setIsCameraOpen(false)}
+        onSaved={(uri) => setSavedPhoto({ userId: user.id, uri })}
+      />
     </View>
   );
 }
-
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: Colors.background,
-    paddingHorizontal: MarginMobile,
   },
-  placeholder: {
+  content: {
+    paddingHorizontal: MarginMobile,
+    gap: Spacing.four,
+  },
+  accountCard: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: Spacing.three,
+    backgroundColor: Colors.surfaceContainerLowest,
+    borderWidth: 1,
+    borderColor: Colors.outlineVariant,
+    borderRadius: Radius.lg,
+    padding: Spacing.four,
+    ...ShadowSoft,
   },
   avatarWrap: {
-    width: 112,
-    height: 112,
-    marginBottom: Spacing.six,
+    width: 48,
+    height: 48,
   },
   avatarCircle: {
     width: '100%',
@@ -162,7 +239,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceContainer,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
   },
   avatarImage: {
     width: '100%',
@@ -170,17 +246,93 @@ const styles = StyleSheet.create({
   },
   cameraBadge: {
     position: 'absolute',
-    right: 0,
-    bottom: 0,
-    width: 38,
-    height: 38,
+    right: -2,
+    bottom: -2,
+    width: 22,
+    height: 22,
     borderRadius: Radius.full,
     backgroundColor: Colors.primary,
-    borderWidth: 3,
-    borderColor: Colors.background,
+    borderWidth: 2,
+    borderColor: Colors.surfaceContainerLowest,
     alignItems: 'center',
     justifyContent: 'center',
-    ...ShadowSoft,
+  },
+  accountInfo: {
+    flex: 1,
+    gap: Spacing.half,
+  },
+  accountName: {
+    fontFamily: Fonts.headlineMedium,
+    fontSize: 18,
+    color: Colors.onSurface,
+  },
+  accountEmail: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.onSurfaceVariant,
+  },
+  roleBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.primaryFixed,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: 2,
+    marginTop: Spacing.half,
+  },
+  roleText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 10,
+    letterSpacing: 0.4,
+    color: Colors.onPrimaryContainer,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.outlineVariant,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: Spacing.two,
+    gap: Spacing.one,
+  },
+  tabText: {
+    fontFamily: Fonts.bodyMedium,
+    fontSize: 13,
+    color: Colors.onSurfaceVariant,
+  },
+  tabTextActive: {
+    fontFamily: Fonts.bodySemiBold,
+    color: Colors.primary,
+  },
+  tabIndicator: {
+    height: 2,
+    width: 28,
+    borderRadius: Radius.full,
+    backgroundColor: 'transparent',
+  },
+  tabIndicatorActive: {
+    backgroundColor: Colors.primary,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    borderWidth: 1,
+    borderColor: Colors.error,
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.three,
+    marginTop: Spacing.two,
+  },
+  logoutText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 14,
+    color: Colors.error,
+  },
+  placeholder: {
+    alignItems: 'center',
+    paddingHorizontal: MarginMobile,
   },
   title: {
     fontFamily: Fonts.headline,
@@ -190,19 +342,11 @@ const styles = StyleSheet.create({
   },
   desc: {
     fontFamily: Fonts.body,
-    fontSize: 15,
+    fontSize: 14,
     color: Colors.onSurfaceVariant,
-    marginBottom: Spacing.one,
     textAlign: 'center',
   },
-  descMuted: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: Colors.onSurfaceVariant,
-    opacity: 0.6,
-    textAlign: 'center',
-  },
-  button: {
+  loginButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
@@ -213,26 +357,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     ...ShadowSoft,
   },
-  buttonText: {
+  loginButtonText: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 14,
     color: Colors.onPrimary,
-  },
-  cameraButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    marginTop: Spacing.five,
-    paddingHorizontal: Spacing.five,
-    paddingVertical: Spacing.two,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.primary,
-    backgroundColor: Colors.surfaceContainerLow,
-  },
-  cameraButtonText: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13,
-    color: Colors.primary,
   },
 });
