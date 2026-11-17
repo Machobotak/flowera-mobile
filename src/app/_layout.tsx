@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 
 import { AuthProvider } from '@/auth/auth-context';
 import { Colors } from '@/constants/theme';
+import { CartProvider } from '@/data/cart/cart-context';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -43,16 +44,21 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <StatusBar style="dark" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: Colors.background },
-        }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="login" />
-        <Stack.Screen name="register" />
-      </Stack>
+      <CartProvider>
+        <StatusBar style="dark" />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: Colors.background },
+          }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="login" />
+          <Stack.Screen name="register" />
+          <Stack.Screen name="product/[id]" />
+          <Stack.Screen name="cart" />
+          <Stack.Screen name="checkout" />
+        </Stack>
+      </CartProvider>
     </AuthProvider>
   );
 }

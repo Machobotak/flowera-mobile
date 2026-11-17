@@ -1,7 +1,14 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
+import { router } from 'expo-router';
 import React from 'react';
-import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -12,6 +19,8 @@ import {
   ShadowSoft,
   Spacing,
 } from '@/constants/theme';
+
+import { useCart } from '@/data/cart/cart-context';
 
 /**
  * Header beranda versi mobile.
@@ -27,6 +36,7 @@ import {
  */
 export default function BuyerNavbar() {
   const insets = useSafeAreaInsets();
+  const { itemCount } = useCart();
   const [query, setQuery] = React.useState('');
 
   return (
@@ -39,13 +49,34 @@ export default function BuyerNavbar() {
           contentFit="contain"
         />
 
-        <TouchableOpacity style={styles.iconButton} activeOpacity={0.7}>
-          <MaterialIcons
-            name="notifications"
-            size={22}
-            color={Colors.onSurfaceVariant}
-          />
-        </TouchableOpacity>
+        <View style={styles.actions}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            activeOpacity={0.7}
+            onPress={() => router.push('/cart')}
+            accessibilityLabel="Keranjang">
+            <MaterialIcons
+              name="shopping-bag"
+              size={22}
+              color={Colors.onSurfaceVariant}
+            />
+            {itemCount > 0 ? (
+              <View style={styles.badge}>
+                <Text style={styles.badgeLabel}>
+                  {itemCount > 99 ? '99+' : itemCount}
+                </Text>
+              </View>
+            ) : null}
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.iconButton} activeOpacity={0.7}>
+            <MaterialIcons
+              name="notifications"
+              size={22}
+              color={Colors.onSurfaceVariant}
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Baris 2: search */}
@@ -86,6 +117,28 @@ const styles = StyleSheet.create({
   logo: {
     height: 28,
     width: 198, // rasio asli logo 936x132
+  },
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+  },
+  badge: {
+    position: 'absolute',
+    top: 0,
+    right: -2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeLabel: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 9,
+    color: Colors.onPrimary,
   },
   iconButton: {
     padding: Spacing.one,

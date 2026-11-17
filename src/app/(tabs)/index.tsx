@@ -1,5 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
+import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, {
   useCallback,
@@ -41,24 +42,12 @@ import {
 import type { HomeData } from '@/data/api/product-api';
 import { HERO_SLIDES, type HeroSlide } from '@/data/home';
 import { useCategoryProducts, useHomeData } from '@/hooks/use-home-data';
+import { formatRupiah } from '@/utils/format';
 
 /* ──────────────────────────── Helpers ──────────────────────────── */
 
-/** Padanan `toLocaleString("id-ID")` di web, aman di semua platform. */
-const formatRupiah = (value: number) =>
-  `Rp ${value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
-
-/**
- * Versi lokal dari `getImageUrl` web — dulu tugasnya menyusun URL file dari
- * backend, sekarang cuma mengambil gambar pertama yang tersedia.
- */
-const getImageUrl = (images: { image_url: string; isDefault: boolean }[]) => {
-  if (images && images.length > 0) {
-    const img = images.find((i) => i.isDefault) || images[0];
-    if (img.image_url) return img.image_url;
-  }
-  return 'https://ui-avatars.com/api/?name=P&background=8c4a5c&color=fff';
-};
+const FALLBACK_PRODUCT_IMAGE =
+  'https://ui-avatars.com/api/?name=P&background=8c4a5c&color=fff';
 
 /* ──────────────────────────── Hero Carousel ──────────────────────────── */
 
@@ -352,8 +341,16 @@ function ExploreSection({
                     ? `${product.sold} terjual`
                     : 'Produk baru'
                 }
-                image={getImageUrl(product.product_image)}
+                image={
+                  product.product_image[0]?.image_url ?? FALLBACK_PRODUCT_IMAGE
+                }
                 imageAlt={product.name}
+                onPress={() =>
+                  router.push({
+                    pathname: '/product/[id]',
+                    params: { id: String(product.id) },
+                  })
+                }
               />
             ))}
           </View>
