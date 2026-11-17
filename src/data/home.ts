@@ -1,7 +1,11 @@
 /**
- * Data statis beranda Flowera — pengganti response API `GET /api/user/home`
- * di web base. Bentuk object-nya sengaja dibuat sama dengan response backend
- * (productCategories, product, store) supaya nanti gampang ditukar ke API asli.
+ * Data beranda sinkron (seed lokal) — dipakai sebagai kondisi awal render
+ * sebelum request `GET /api/user/home` selesai, dan sebagai fallback kalau
+ * Flowera API tidak bisa dihubungi.
+ *
+ * Bentuk object-nya sengaja identik dengan hasil mapping response backend
+ * (lihat `src/data/api/product-api.ts`) supaya komponen tidak perlu tahu
+ * apakah datanya berasal dari seed sinkron atau hasil fetch asinkron.
  *
  * Semua URL gambar di sini sudah dites bisa diakses (HTTP 200).
  */
@@ -37,10 +41,11 @@ export interface Product {
   name: string;
   price: number;
   rating: number;
-  sold: number;
-  /** Kategori dipakai untuk filter lokal (di web filter dilakukan lewat API). */
-  category_id: number;
-  store: Store;
+  /** Tidak tersedia di response `/user/home`; produk dari API tampil "Baru". */
+  sold?: number;
+  /** Kategori untuk filter lokal sinkron; di API filter lewat endpoint kategori. */
+  category_id?: number;
+  store: Store | null;
   product_image: ProductImage[];
 }
 

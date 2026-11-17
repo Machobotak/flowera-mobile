@@ -19,12 +19,23 @@
 import { create, type AxiosInstance } from 'axios';
 import { Platform } from 'react-native';
 
-const DEFAULT_API_BASE_URL = 'http://localhost:3000';
+const DEFAULT_API_BASE_URL = 'http://192.168.14.219:3000';
 
 /** Base URL tanpa trailing slash. */
 export const API_BASE_URL = (
   process.env.EXPO_PUBLIC_API_BASE_URL ?? DEFAULT_API_BASE_URL
 ).replace(/\/+$/, '');
+
+/**
+ * Ubah path upload relatif dari backend (mis. `/uploads/produk.jpg`) menjadi
+ * URL absolut. URL yang sudah absolut dibiarkan apa adanya.
+ */
+export function resolveAssetUrl(path?: string | null): string | null {
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path)) return path;
+
+  return `${API_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+}
 
 export interface AuthTokens {
   accessToken: string;

@@ -1,9 +1,17 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
+  ActivityIndicator,
   FlatList,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -30,13 +38,9 @@ import {
   StackLg,
   StackMd,
 } from '@/constants/theme';
-import {
-  HERO_SLIDES,
-  PRODUCT_CATEGORIES,
-  PRODUCTS,
-  STORES,
-  type HeroSlide,
-} from '@/data/home';
+import type { HomeData } from '@/data/api/product-api';
+import { HERO_SLIDES, type HeroSlide } from '@/data/home';
+import { useCategoryProducts, useHomeData } from '@/hooks/use-home-data';
 
 /* ──────────────────────────── Helpers ──────────────────────────── */
 
@@ -155,27 +159,73 @@ function HeroCarousel({ width }: { width: number }) {
   );
 }
 
-/* ──────────────────────────── Explore Section ──────────────────────────── */
+interface ExploreSectionProps {
+  contentWidth: number;
+  home: HomeData;
+  isLoading: boolean;
+  error: string | null;
+  onRetry(): void;
+}
 
-function ExploreSection({ contentWidth }: { contentWidth: number }) {
-  const [activeTab, setActiveTab] = useState<'products' | 'florists'>('products');
+function ExploreSection({
+  contentWidth,
+  home,
+  isLoading,
+  error,
+  onRetry,
+}: ExploreSectionProps) {
+  const [activeTab, setActiveTab] = useState<'products' | 'florists'>(
+    'products',
+  );
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
 
   /**
-   * Di web, memilih kategori memicu request `/api/user/product/categories/:id`.
-   * Karena versi ini static, filternya dilakukan langsung di memori.
+   * Dua jalur data berjalan bersamaan:
+   * - sinkron: filter kategori di memori dari data yang sudah dimuat, tampil
+   *   seketika saat chip ditekan;
+   * - asinkron: `GET /user/product/categories/:id`; hasilnya menggantikan
+   *   filter lokal begitu response tiba.
    */
-  const displayProducts = (
-    selectedCategory === null
-      ? PRODUCTS
-      : PRODUCTS.filter((p) => p.category_id === selectedCategory)
-  ).filter((p) => p.name && p.name !== 'Unknown');
+  const category = useCategoryProducts(selectedCategory, home.products);
+  const localProducts = useMemo(
+    () =>
+      selectedCategory === null
+        ? home.products
+        : home.products.filter((p) => p.category_id === selectedCategory),
+    [home.products, selectedCategory],
+  );
+  const displayProducts = (category.products ?? localProducts).filter(
+    (p) => p.name && p.name !== 'Unknown',
+  );
+  const categoryError = selectedCategory === null ? null : category.error;
+  const categoryIsLoading = selectedCategory !== null && category.isLoading;
 
   // Dua kolom dengan gutter, dihitung supaya tidak pernah meluber.
   const cardWidth = (contentWidth - Spacing.three) / 2;
 
   return (
     <View style={styles.explore}>
+      {/* Status sinkronisasi — seed/lokal tetap tampil selama request jalan */}
+      {isLoading && (
+        <View style={styles.statusRow}>
+          <ActivityIndicator size="small" color={Colors.primary} />
+          <Text style={styles.statusText}>
+            Menyinkronkan produk dari Flowera API…
+          </Text>
+        </View>
+      )}
+      {error && (
+        <View style={styles.errorBanner}>
+          <MaterialIcons name="cloud-off" size={20} color={Colors.error} />
+          <Text style={styles.errorText}>
+            {error} Data lokal tetap ditampilkan.
+          </Text>
+          <TouchableOpacity onPress={onRetry} activeOpacity={0.8}>
+            <Text style={styles.retryText}>Coba Lagi</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Category chips — hanya untuk tab produk */}
       {activeTab === 'products' && (
         <View style={styles.categoryBlock}>
@@ -193,7 +243,10 @@ function ExploreSection({ contentWidth }: { contentWidth: number }) {
             <TouchableOpacity
               onPress={() => setSelectedCategory(null)}
               activeOpacity={0.8}
-              style={[styles.chip, selectedCategory === null && styles.chipActive]}>
+              style={[
+                styles.chip,
+                selectedCategory === null && styles.chipActive,
+              ]}>
               <Text
                 style={[
                   styles.chipText,
@@ -203,7 +256,7 @@ function ExploreSection({ contentWidth }: { contentWidth: number }) {
               </Text>
             </TouchableOpacity>
 
-            {PRODUCT_CATEGORIES.map((cat) => {
+            {home.categories.map((cat) => {
               const isActive = selectedCategory === cat.id;
               return (
                 <TouchableOpacity
@@ -228,6 +281,22 @@ function ExploreSection({ contentWidth }: { contentWidth: number }) {
               </Text>
             </TouchableOpacity>
           </ScrollView>
+
+          {categoryIsLoading && (
+            <View style={styles.statusRow}>
+              <ActivityIndicator size="small" color={Colors.primary} />
+              <Text style={styles.statusText}>Memuat produk kategori…</Text>
+            </View>
+          )}
+          {categoryError && (
+            <View style={styles.errorBanner}>
+              <MaterialIcons name="cloud-off" size={20} color={Colors.error} />
+              <Text style={styles.errorText}>{categoryError}</Text>
+              <TouchableOpacity onPress={category.retry} activeOpacity={0.8}>
+                <Text style={styles.retryText}>Coba Lagi</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       )}
 
@@ -236,7 +305,10 @@ function ExploreSection({ contentWidth }: { contentWidth: number }) {
         <TouchableOpacity
           onPress={() => setActiveTab('products')}
           activeOpacity={0.8}
-          style={[styles.tabItem, activeTab === 'products' && styles.tabItemActive]}>
+          style={[
+            styles.tabItem,
+            activeTab === 'products' && styles.tabItemActive,
+          ]}>
           <Text
             style={[
               styles.tabText,
@@ -248,7 +320,10 @@ function ExploreSection({ contentWidth }: { contentWidth: number }) {
         <TouchableOpacity
           onPress={() => setActiveTab('florists')}
           activeOpacity={0.8}
-          style={[styles.tabItem, activeTab === 'florists' && styles.tabItemActive]}>
+          style={[
+            styles.tabItem,
+            activeTab === 'florists' && styles.tabItemActive,
+          ]}>
           <Text
             style={[
               styles.tabText,
@@ -268,15 +343,24 @@ function ExploreSection({ contentWidth }: { contentWidth: number }) {
                 key={product.id}
                 style={{ width: cardWidth }}
                 name={product.name}
-                florist={product.store?.name || 'Unknown Florist'}
+                florist={product.store?.name || 'Flowera'}
                 price={formatRupiah(product.price)}
                 rating={product.rating > 0 ? product.rating.toString() : 'Baru'}
-                location={product.store?.city || 'Unknown'}
-                sold={`${product.sold} terjual`}
+                location={product.store?.city || 'Lokasi belum tersedia'}
+                sold={
+                  product.sold && product.sold > 0
+                    ? `${product.sold} terjual`
+                    : 'Produk baru'
+                }
                 image={getImageUrl(product.product_image)}
                 imageAlt={product.name}
               />
             ))}
+          </View>
+        ) : categoryIsLoading ? (
+          <View style={styles.emptyState}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+            <Text style={styles.emptyDesc}>Memuat produk kategori…</Text>
           </View>
         ) : (
           <View style={styles.emptyState}>
@@ -296,11 +380,11 @@ function ExploreSection({ contentWidth }: { contentWidth: number }) {
         )
       ) : (
         <View style={styles.floristList}>
-          {STORES.map((florist) => (
+          {home.stores.map((florist) => (
             <FloristCard
               key={florist.id}
               name={florist.name}
-              location={florist.city || 'Unknown City'}
+              location={florist.city}
               distance="Dekat Anda"
               avatar={florist.logo}
               avatarAlt={florist.name}
@@ -311,7 +395,7 @@ function ExploreSection({ contentWidth }: { contentWidth: number }) {
 
       {/* Load more — di web muncul kalau data yang dimuat sudah 50 item */}
       {((activeTab === 'products' && displayProducts.length >= 50) ||
-        (activeTab === 'florists' && STORES.length >= 50)) && (
+        (activeTab === 'florists' && home.stores.length >= 50)) && (
         <View style={styles.loadMoreWrapper}>
           <TouchableOpacity style={styles.loadMoreButton} activeOpacity={0.8}>
             <Text style={styles.loadMoreText}>Muat Lebih Banyak</Text>
@@ -327,6 +411,7 @@ function ExploreSection({ contentWidth }: { contentWidth: number }) {
 export default function HomeScreen() {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const { data, isLoading, isRefreshing, error, refresh } = useHomeData();
 
   // Web: max-w-container-max + px-margin-mobile, jadi konten dibatasi 800px.
   const contentWidth = Math.min(width, MaxContentWidth) - MarginMobile * 2;
@@ -341,9 +426,23 @@ export default function HomeScreen() {
           styles.scrollContent,
           { paddingBottom: insets.bottom + StackLg },
         ]}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={refresh}
+            tintColor={Colors.primary}
+            colors={[Colors.primary]}
+          />
+        }
         showsVerticalScrollIndicator={false}>
         <HeroCarousel width={contentWidth} />
-        <ExploreSection contentWidth={contentWidth} />
+        <ExploreSection
+          contentWidth={contentWidth}
+          home={data}
+          isLoading={isLoading}
+          error={error}
+          onRetry={refresh}
+        />
       </ScrollView>
     </View>
   );
@@ -532,6 +631,38 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.outlineVariant,
+  },
+
+  /* Status sinkronisasi & error */
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingVertical: Spacing.one,
+  },
+  statusText: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.onSurfaceVariant,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    padding: Spacing.two,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.errorContainer,
+  },
+  errorText: {
+    flex: 1,
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.error,
+  },
+  retryText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12,
+    color: Colors.error,
   },
   emptyIcon: {
     opacity: 0.5,
