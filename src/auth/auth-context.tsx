@@ -11,25 +11,6 @@
  * Password tidak pernah disimpan; yang persist hanya token + profil publik
  * (`src/auth/session-storage.ts`).
  */
-  /** Ambil ulang profil dari server (mis. setelah jadi seller). */
-  refreshUser(): Promise<PublicUser | null>;
-  refreshUser: async () => null,
-  /**
-   * Sinkronkan profil dari `GET /auth/me` tanpa login ulang.
-   * Dipakai setelah `POST /seller/store/create`: role `seller` baru terbaca
-   * dari tabel SELLER, sedangkan token lama tetap `roles:["user"]`.
-   */
-  const refreshUser = async (): Promise<PublicUser | null> => {
-    const current = await fetchCurrentUser();
-    setUser(current);
-
-    const session = await getSession();
-    if (session) await setSession({ ...session, user: current });
-
-    return current;
-  };
-
-        refreshUser,
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
@@ -56,6 +37,8 @@ interface AuthContextType {
   login(input: LoginInput): Promise<void>;
   register(input: RegisterInput): Promise<void>;
   logout(): Promise<void>;
+  /** Ambil ulang profil dari server (mis. setelah jadi seller). */
+  refreshUser(): Promise<PublicUser | null>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -65,6 +48,7 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => {},
   register: async () => {},
   logout: async () => {},
+  refreshUser: async () => null,
 });
 
 export function AuthProvider({
@@ -143,6 +127,21 @@ export function AuthProvider({
     // Sesuai alur: register sukses → redirect ke /login, tidak auto-login.
   };
 
+  /**
+   * Sinkronkan profil dari `GET /auth/me` tanpa login ulang.
+   * Dipakai setelah `POST /seller/store/create`: role `seller` baru terbaca
+   * dari tabel SELLER, sedangkan token lama tetap `roles:["user"]`.
+   */
+  const refreshUser = async (): Promise<PublicUser | null> => {
+    const current = await fetchCurrentUser();
+    setUser(current);
+
+    const session = await getSession();
+    if (session) await setSession({ ...session, user: current });
+
+    return current;
+  };
+
   const logout = async (): Promise<void> => {
     setUser(null);
     try {
@@ -162,6 +161,7 @@ export function AuthProvider({
         login,
         register,
         logout,
+        refreshUser,
       }}>
       {children}
     </AuthContext.Provider>

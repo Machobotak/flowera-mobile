@@ -15,27 +15,6 @@
  *     httpOnly dari API (origin lain, `SameSite=Lax`) tidak ikut terkirim.
  *   - `Cookie: accessToken=...; refreshToken=...` (khusus native).
  */
-/**
- * Base URL file upload MinIO (mis. `http://host:9000/flowera`).
- *
- * Backend menyimpan `image_url`/`STORE.LOGO` sebagai path relatif ke bucket
- * (`/products/x.jpg`, `stores/x.jpg`), bukan ke API NestJS. Web memakai
- * `NEXT_PUBLIC_ACCESS_FILE_STORAGE`; mobile memakai env gitignored
- * `EXPO_PUBLIC_STORAGE_BASE_URL`. Kalau belum diisi, jatuh ke `API_BASE_URL`
- * supaya tetap ada URL (walau gambar tidak akan tampil).
- */
-export const STORAGE_BASE_URL = (
-  process.env.EXPO_PUBLIC_STORAGE_BASE_URL ?? API_BASE_URL
-).replace(/\/+$/, '');
-
-/** Path objek MinIO → URL absolut. */
-export function resolveStorageUrl(path?: string | null): string | null {
-  if (!path) return null;
-  if (/^https?:\/\//i.test(path)) return path;
-
-  return `${STORAGE_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
-}
-
 
 import { create, type AxiosInstance } from 'axios';
 import { Platform } from 'react-native';
@@ -56,6 +35,27 @@ export function resolveAssetUrl(path?: string | null): string | null {
   if (/^https?:\/\//i.test(path)) return path;
 
   return `${API_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+}
+
+/**
+ * Base URL file upload MinIO (mis. `http://host:9000/flowera`).
+ *
+ * Backend menyimpan `image_url`/`STORE.LOGO` sebagai path relatif ke bucket
+ * (`/products/x.jpg`, `stores/x.jpg`), bukan ke API NestJS. Web memakai
+ * `NEXT_PUBLIC_ACCESS_FILE_STORAGE`; mobile memakai env gitignored
+ * `EXPO_PUBLIC_STORAGE_BASE_URL`. Kalau belum diisi, jatuh ke `API_BASE_URL`
+ * supaya tetap ada URL (walau gambar tidak akan tampil).
+ */
+export const STORAGE_BASE_URL = (
+  process.env.EXPO_PUBLIC_STORAGE_BASE_URL ?? API_BASE_URL
+).replace(/\/+$/, '');
+
+/** Path objek MinIO → URL absolut. */
+export function resolveStorageUrl(path?: string | null): string | null {
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path)) return path;
+
+  return `${STORAGE_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
 }
 
 export interface AuthTokens {
