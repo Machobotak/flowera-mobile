@@ -19,7 +19,7 @@
 import { create, type AxiosInstance } from 'axios';
 import { Platform } from 'react-native';
 
-const DEFAULT_API_BASE_URL = 'http://192.168.14.219:3000';
+const DEFAULT_API_BASE_URL = 'http://172.16.40.188:3002';
 
 /** Base URL tanpa trailing slash. */
 export const API_BASE_URL = (

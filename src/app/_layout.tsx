@@ -1,12 +1,17 @@
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { router, Stack, useRootNavigationState } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { AuthProvider } from '@/auth/auth-context';
 import { Colors } from '@/constants/theme';
 import { CartProvider } from '@/data/cart/cart-context';
+import {
+  ensureNotificationPermission,
+  listenForNotificationTaps,
+  type NotificationScreen,
+} from '@/notifications/notifications';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -20,6 +25,9 @@ SplashScreen.preventAutoHideAsync();
  * `expo export` — akibatnya font hilang di build produksi.
  */
 export default function RootLayout() {
+  const rootNavigationState = useRootNavigationState();
+  const rootNavigationKeyRef = useRef(rootNavigationState?.key);
+  const pendingNotificationScreenRef = useRef<NotificationScreen | null>(null);
   const [loaded, error] = useFonts({
     PlayfairDisplay_400Regular: require('@/assets/fonts/PlayfairDisplay_400Regular.ttf'),
     PlayfairDisplay_500Medium: require('@/assets/fonts/PlayfairDisplay_500Medium.ttf'),
@@ -32,10 +40,44 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (loaded || error) {
-      SplashScreen.hideAsync();
-    }
+    rootNavigationKeyRef.current = rootNavigationState?.key;
+  }, [rootNavigationState?.key]);
+
+  useEffect(() => {
+    if (!loaded && !error) return;
+
+    SplashScreen.hideAsync();
+    // Cek izin notifikasi sekali per sesi setelah splash hilang; prompt
+    // hanya muncul kalau pengguna belum pernah memutuskan.
+    void ensureNotificationPermission();
+
+    // Response tap yang diterima saat startup ditahan sampai navigator siap.
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
+    void listenForNotificationTaps((screen) => {
+      if (rootNavigationKeyRef.current) {
+        openNotificationScreen(screen);
+      } else {
+        pendingNotificationScreenRef.current = screen;
+      }
+    }).then((cleanup) => {
+      if (cancelled) cleanup();
+      else unsubscribe = cleanup;
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
   }, [loaded, error]);
+
+  useEffect(() => {
+    const pendingScreen = pendingNotificationScreenRef.current;
+    if (!pendingScreen || !rootNavigationState?.key) return;
+
+    pendingNotificationScreenRef.current = null;
+    openNotificationScreen(pendingScreen);
+  }, [rootNavigationState?.key]);
 
   // Tahan splash screen sampai font siap supaya teks tidak "berkedip".
   if (!loaded && !error) {
@@ -67,4 +109,10 @@ export default function RootLayout() {
       </CartProvider>
     </AuthProvider>
   );
+}
+
+function openNotificationScreen(screen: NotificationScreen): void {
+  if (screen === 'login') {
+    router.navigate({ pathname: '/login', params: { registered: '1' } });
+  }
 }

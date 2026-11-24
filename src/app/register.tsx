@@ -28,6 +28,7 @@ import {
   validatePassword,
   validatePhoneNumber,
 } from '@/data/auth/validation';
+import { notifyAccountCreated } from '@/notifications/notifications';
 
 interface FieldErrors {
   name?: string;
@@ -83,6 +84,7 @@ export default function RegisterScreen(): React.JSX.Element {
     setSubmitting(true);
     try {
       await register({ name, phone_number: phoneNumber, email, password });
+      await notifyAccountCreated(name.trim());
       router.replace({ pathname: '/login', params: { registered: '1' } });
     } catch (e) {
       setFormError(e instanceof Error ? e.message : 'Registrasi gagal');

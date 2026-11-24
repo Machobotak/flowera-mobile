@@ -46,7 +46,9 @@
         {
           "photosPermission": false,
           "savePhotosPermission": "Izinkan Flowera menyimpan foto profil ke galeri.",
-          "granularPermissions": ["photo"]
+          "granularPermissions": [
+            "photo"
+          ]
         }
       ],
       [
@@ -54,7 +56,19 @@
         {
           "locationWhenInUsePermission": "Izinkan Flowera mengakses lokasi kamu untuk mengisi alamat secara otomatis."
         }
-      ]
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#8c4a5c",
+          "defaultChannel": "account",
+          "enableRemoteNotifications": false
+        }
+      ],
+      "expo-image",
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
